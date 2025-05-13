@@ -1,0 +1,53 @@
+import pandas as pd
+from rdkit import Chem
+from rdkit.Chem import QED
+from rdkit.Chem import Descriptors
+from rdkit.Chem import Crippen
+from rdkit.Chem import Lipinski
+
+# Load the SMILES file
+df = pd.read_csv('smiles1.csv')
+
+# Ensure column is named 'smiles'
+if 'smiles' not in df.columns:
+    raise ValueError("Your file must contain a column named 'smiles'")
+
+# Function to validate SMILES
+def is_valid_smiles(smiles):
+    try:
+        return Chem.MolFromSmiles(smiles) is not None
+    except:
+        return False
+
+# Clean data: remove invalid and duplicate SMILES
+df = df[df['smiles'].apply(is_valid_smiles)].drop_duplicates(subset='smiles')
+
+# QED Score Calculation
+def get_qed(smiles):
+    mol = Chem.MolFromSmiles(smiles)
+    return QED.qed(mol) if mol else None
+
+# Synthetic Accessibility (SA) Score Calculation using RDKit
+def get_sa(smiles):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol:
+        # Simple approximation: Use the number of heavy atoms (HAC) and rotatable bonds
+        num_heavy_atoms = Descriptors.HeavyAtomCount(mol)
+        num_rotatable_bonds = Lipinski.NumRotatableBonds(mol)
+        
+        # This is a simplified version of the SA score calculation
+        sa_score = num_heavy_atoms + num_rotatable_bonds  # A crude approximation
+        return sa_score
+    return None
+
+# Apply functions
+df['qed'] = df['smiles'].apply(get_qed)
+df['sa'] = df['smiles'].apply(get_sa)
+
+# Drop any rows where scoring failed
+df.dropna(subset=['qed', 'sa'], inplace=True)
+
+# Save to CSV
+df.to_csv('smiles_with_scores.csv', index=False)
+
+print("✅ QED and SA score calculation complete. Output saved to 'smiles_with_scores.csv'")
