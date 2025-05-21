@@ -1,0 +1,56 @@
+import pandas as pd
+from rdkit import Chem
+from rdkit.Chem import Descriptors, QED
+import matplotlib.pyplot as plt
+
+# Updated SMILES list
+smiles_list = [
+    "CN1C=NC(=C1SC2=NC=NC3=C2NC=N3)[N+](=O)[O-]",
+    "CN1C=NC(=C1SC2=NC(=NC3=C2NC=N3)N)[N+](=O)[O-]",
+    "CN1C=NC(=C1[N+](=O)[O-])SC2=NC=NC3=C2NC=N3",
+    "CC1=NC(=C(N1C)SC2=NC=NC3=C2NC=N3)[N+](=O)[O-]",
+    "CCCN1C(=NC(=C1[N+](=O)[O-])SC2=NC=NC3=C2NC=N3)CC",
+    "[2H]N1C=NC2=C1C(=NC=N2)SC3=C(N=CN3C)[N+](=O)[O-]"
+]
+
+# Ligand labels
+ligand_names = [f"Ligand {i+1}" for i in range(len(smiles_list))]
+
+# Calculate QED and SA proxy scores
+results = []
+for smi in smiles_list:
+    mol = Chem.MolFromSmiles(smi)
+    if mol is None:
+        results.append({"Ligand": smi, "QED": None, "SA_proxy": None})
+        continue
+
+    qed_score = QED.qed(mol)
+
+    # Custom SA proxy (not actual SA score)
+    mw = Descriptors.MolWt(mol)
+    rot_bonds = Descriptors.NumRotatableBonds(mol)
+    tpsa = Descriptors.TPSA(mol)
+    heavy_atoms = mol.GetNumHeavyAtoms()
+
+    sa_proxy = 0.002 * mw + 0.05 * rot_bonds + 0.01 * tpsa + 0.05 * heavy_atoms
+
+    results.append({"Ligand": smi, "QED": qed_score, "SA_proxy": sa_proxy})
+
+# Create DataFrame
+df = pd.DataFrame(results)
+df["Ligand"] = ligand_names
+print(df)
+
+# Plot QED and SA Proxy Scores
+plt.figure(figsize=(10, 6))
+plt.plot(df["Ligand"], df["SA_proxy"], marker='o', label='SA (proxy)', color='red')
+plt.plot(df["Ligand"], df["QED"], marker='s', label='QED', color='blue')
+
+plt.title("QED and SA Proxy Scores for Ligands")
+plt.xlabel("Ligand")
+plt.ylabel("Score")
+plt.grid(True)
+plt.xticks(rotation=45)
+plt.legend()
+plt.tight_layout()
+plt.show()
